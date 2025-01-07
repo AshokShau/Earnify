@@ -24,13 +24,13 @@ import (
 const WITHDWAWL = "Withdrawal"
 
 var (
-	WebhookURL  string
-	Port        string
-	MongoDBURI  string
-	secretToken string
-	OwnerID     int64
-	LoggerID    int64
-
+	WebhookURL     string
+	Port           string
+	MongoDBURI     string
+	secretToken    string
+	OwnerID        int64
+	LoggerID       int64
+	FSubIds        []int64
 	ctx            = context.TODO()
 	allowedUpdates = []string{"message", "callback_query"}
 )
@@ -52,6 +52,12 @@ func main() {
 		log.Fatal("LOGGER_ID is not set")
 	}
 
+	fsubids, err := strconv.ParseInt(os.Getenv("FSUB_IDS"), 10, 64)
+	if err != nil {
+		log.Fatal("FSUB_IDS is not set")
+	}
+
+	FSubIds = append(FSubIds, fsubids)
 	MongoDBURI = os.Getenv("MONGO_URI")
 
 	secretToken = os.Getenv("SECRET_TOKEN")
@@ -237,6 +243,16 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	var referrerID int64
 	if len(args) > 0 {
+		isMember, err := fSub(b, user.Id, args[0])
+		if err != nil {
+			_, _ = msg.Reply(b, "❌ An error occurred. Please try again later.", nil)
+			return fmt.Errorf("start: %v", err)
+		}
+
+		if !isMember {
+			return ext.EndGroups
+		}
+
 		referralCode := strings.TrimSpace(args[0])
 		referrerID, err = strconv.ParseInt(referralCode, 10, 64)
 		if err != nil || referrerID <= 0 {
