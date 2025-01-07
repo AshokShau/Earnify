@@ -29,14 +29,14 @@
 - `/add <user_id> <amount>` - Add balance to a user's account.
 - `/remove <user_id> <amount>` - Remove balance from a user's account.
 - `/stats` - View bot statistics like total users, total rewards, etc.
-- `/broadcast <message>` - Send a message to all users.
+- `/broadcast` - Send a message to all users.
 
 ---
 
 ## Bot Setup
 
 ### Prerequisites:
-- **Go** (version 1.18+)
+- **Go** (version letest one)
 - **MongoDB** for storing user data and balance.
 - **Telegram Bot Token**: You need to create a bot on Telegram and get a bot token from [BotFather](https://core.telegram.org/bots#botfather).
 
