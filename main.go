@@ -132,8 +132,6 @@ func main() {
 	log.Printf("%s has been started...\n", bot.User.Username)
 	updater.Idle()
 }
-
-// Start function to handle /start command
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
@@ -145,23 +143,23 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
-					Text: "Owner",
+					Text: "👤 Owner",
 					Url:  "https://t.me/MaybeRadhaa",
 				},
 			},
 			{
 				{
-					Text: "Refer & Earn",
+					Text: "🔗 Refer & Earn",
 					Url:  fmt.Sprintf("https://t.me/share/url?url=%s", referUrl),
 				},
 				{
-					Text:         "Info",
+					Text:         "ℹ️ Info",
 					CallbackData: fmt.Sprintf("info.%d", user.Id),
 				},
 			},
 			{
 				{
-					Text:         "Wallet",
+					Text:         "💼 Wallet",
 					CallbackData: fmt.Sprintf("wallet.%d", user.Id),
 				},
 			},
@@ -172,13 +170,18 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	existingUser, err := getUser(user.Id)
 	if err != nil && err.Error() != "mongo: no documents in result" {
 		log.Printf("Failed to fetch user: %v", err)
-		_, _ = msg.Reply(b, "An error occurred. Please try again later.\n/start", nil)
+		_, _ = msg.Reply(b, "❌ An error occurred. Please try again later.\n/start", nil)
 		return nil
 	}
 
 	if existingUser != nil {
 		// Existing user message
-		response := fmt.Sprintf("<b>Welcome to the Refer & Earn Bot! 🎉</b>, %s!\nYour account balance: %.2f\nReferred users: %d\nEarn dogs token by referring friends and redeem reward", user.FirstName, existingUser.Balance, len(existingUser.ReferredUsers))
+		response := fmt.Sprintf(
+			"👋 <b>Welcome back, %s!</b>\n\n"+
+				"💰 <b>Balance:</b> %.2f\n"+
+				"🤝 <b>Referred Users:</b> %d\n\n"+
+				"🚀 Keep earning rewards by referring your friends!",
+			user.FirstName, existingUser.Balance, len(existingUser.ReferredUsers))
 
 		_, _ = msg.Reply(b, response, &gotgbot.SendMessageOpts{
 			ReplyMarkup: button,
@@ -196,32 +199,43 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 		referralCode := strings.TrimSpace(args[0])
 		referrerID, err = strconv.ParseInt(referralCode, 10, 64)
 		if err != nil || referrerID <= 0 {
-			_, _ = msg.Reply(b, "Invalid referral code. Please try again.", nil)
+			_, _ = msg.Reply(b, "❌ <b>Invalid referral code!</b>\n\nPlease check the code and try again.", &gotgbot.SendMessageOpts{
+				ParseMode: "HTML",
+			})
 			return nil
 		}
 
 		// Check if the referrer exists
 		referrer, err := getUser(referrerID)
 		if err != nil {
-			_, _ = msg.Reply(b, "The referral code is not valid.", nil)
+			_, _ = msg.Reply(b, "❌ <b>The referral code is not valid.</b>\n\nPlease check with the person who referred you.", &gotgbot.SendMessageOpts{
+				ParseMode: "HTML",
+			})
 			return nil
 		}
 
-		log.Printf("referrer ID: %d", referrer.ID)
+		log.Printf("Referrer ID: %d", referrer.ID)
 
 		// Register the user with the referrer
 		err = referUser(referrerID, user.Id)
 		if err != nil {
 			log.Printf("Failed to refer user: %v", err)
-			url := fmt.Sprintf("https://t.me/%s?start=%d", b.User.Username, referrerID)
-			_, _ = msg.Reply(b, "Failed to register with the referral. Please try again.\n"+url, nil)
+			_, _ = msg.Reply(b, "⚠️ <b>Failed to register with the referral. Please try again.</b>", &gotgbot.SendMessageOpts{
+				ParseMode: "HTML",
+			})
 			return nil
 		}
 
 		// Notify referrer about a successful referral
-		_, _ = b.SendMessage(referrerID, fmt.Sprintf("You referred %s (%d) successfully!\nYou have been rewarded 10.00 dogs tokens", user.FirstName, user.Id), nil)
+		_, _ = b.SendMessage(referrerID, fmt.Sprintf(
+			"🎉 <b>Referral Successful!</b>\n\n"+
+				"👤 You referred <b>%s</b> (%d) successfully!\n"+
+				"💵 You’ve earned <b>10.00 DOGS tokens</b>! Keep sharing and earning more! 🚀",
+			user.FirstName, user.Id), &gotgbot.SendMessageOpts{
+			ParseMode: "HTML",
+		})
 
-		// update referrer's balance
+		// Update referrer's balance
 		err = updateUserBalance(referrerID, 10.0)
 		if err != nil {
 			log.Printf("Failed to update referrer's balance: %v", err)
@@ -238,13 +252,21 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		if err != nil {
 			log.Printf("Failed to add user: %v", err)
-			_, _ = msg.Reply(b, "Failed to register. Please try again.\n", nil)
+			_, _ = msg.Reply(b, "❌ <b>Failed to register. Please try again later.</b>", &gotgbot.SendMessageOpts{
+				ParseMode: "HTML",
+			})
 			return nil
 		}
 	}
 
 	// Success message for the new user
-	response := fmt.Sprintf("<b>Welcome to the Refer & Earn Bot! 🎉</b>, %s!\nYour account balance: %.2f\nReferred users: %d\nEarn dogs token by referring friends and redeem reward", user.FirstName, 0.00, 0)
+	response := fmt.Sprintf(
+		"🎉 <b>Welcome to the Refer & Earn Bot, %s!</b>\n\n"+
+			"💰 <b>Balance:</b> %.2f\n"+
+			"🤝 <b>Referred Users:</b> %d\n\n"+
+			"🔗 Use your referral link to invite friends and earn rewards!",
+		user.FirstName, 0.00, 0)
+
 	_, _ = msg.Reply(b, response, &gotgbot.SendMessageOpts{
 		ReplyMarkup: button,
 		ParseMode:   "HTML",
@@ -254,41 +276,66 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	return nil
 }
-
 func help(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	text := `
-/start - Start the bot
-/help - Show this message
-/info - Show user info
-/add - Add balance
-/accno - Set/update account number
-/remove - Remove balance
+<b>🤖 Bot Commands</b>
+Here are the commands you can use:
+
+<b>🔹 General Commands</b>
+/start - 🚀 Start the bot  
+/help - 📖 Show this help message  
+/info - ℹ️ Show your user info  
+/accno - 🆔 Set or update account number 
+
+<b>🔸 Owner Commands</b>
+/add - ➕ Add balance  
+/remove - ➖ Remove balance  
+/stats - 📊 Show bot statistics  
+/broadcast - 📢 Broadcast a message to all users  
+
+⚠️ <i>Note: Owner commands are restricted to the bot owner only.</i>
 `
-	_, _ = msg.Reply(b, text, nil)
+	_, _ = msg.Reply(b, text, &gotgbot.SendMessageOpts{
+		ParseMode: "HTML",
+	})
 	return nil
 }
-
 func info(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
 	args := ctx.Args()[1:]
 	var userId int64
 
+	// Determine user ID (self or provided as argument)
 	if len(args) == 0 {
 		userId = user.Id
 	} else {
 		userId = stringToInt64(args[0])
 	}
 
+	// Fetch user information from the database
 	userInfo, err := getUser(userId)
 	if err != nil {
-		_, _ = msg.Reply(b, "User not found.", nil)
+		_, _ = msg.Reply(b, "❌ <b>User not found.</b>\n\nPlease check the User ID and try again.", &gotgbot.SendMessageOpts{
+			ParseMode: "HTML",
+		})
 		return nil
 	}
 
-	response := fmt.Sprintf("User ID: %d\nReferrer: %d\nReferred Users: %v\nAccount Balance: %.2f", userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance)
-	_, _ = msg.Reply(b, response, nil)
+	// Format the response with improved text and emojis
+	response := fmt.Sprintf(
+		"👤 <b>User Information</b>\n\n"+
+			"🔹 <b>User ID:</b> %d\n"+
+			"🔗 <b>Referrer ID:</b> %d\n"+
+			"🤝 <b>Referred Users:</b> %d\n"+
+			"💰 <b>Account Balance:</b> %.2f\n",
+		userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance)
+
+	// Send the response
+	_, _ = msg.Reply(b, response, &gotgbot.SendMessageOpts{
+		ParseMode: "HTML",
+	})
 	return nil
 }
 
@@ -296,53 +343,112 @@ func infoCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	query := ctx.CallbackQuery
 	callbackData := query.Data
+
+	// Split and parse callback data
 	splitData := strings.Split(callbackData, ".")
+	if len(splitData) < 2 {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "❌ Invalid callback data.",
+			ShowAlert: true,
+		})
+		return nil
+	}
 	userId := stringToInt64(splitData[1])
 
+	// Fetch user info
 	userInfo, err := getUser(userId)
 	if err != nil {
+		// Respond to callback query with an error
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-			Text: "User not found."})
-
-		_, _, _ = msg.EditText(b, "User not found.", nil)
+			Text:      "❌ User not found.",
+			ShowAlert: true,
+		})
+		_, _, _ = msg.EditText(b, "❌ <b>User not found.</b>", &gotgbot.EditMessageTextOpts{
+			ParseMode: "HTML",
+		})
 		return nil
 	}
 
-	response := fmt.Sprintf("User ID: %d\nReferrer: %d\nReferred Users: %v\nAccount Balance: %.2f", userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance)
-	_, _, _ = msg.EditText(b, response, nil)
+	// Format response with rich text and emojis
+	response := fmt.Sprintf(
+		"👤 <b>User Information</b>\n\n"+
+			"🔹 <b>User ID:</b> %d\n"+
+			"🔗 <b>Referrer ID:</b> %d\n"+
+			"🤝 <b>Referred Users:</b> %d\n"+
+			"💰 <b>Account Balance:</b> %.2f",
+		userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance)
+
+	// Answer the callback query with success message
+	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+		Text: "ℹ️ User information loaded successfully.",
+	})
+
+	// Edit message with user information
+	_, _, _ = msg.EditText(b, response, &gotgbot.EditMessageTextOpts{
+		ParseMode: "HTML",
+	})
+
 	return nil
 }
-
 func walletCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	query := ctx.CallbackQuery
 	callbackData := query.Data
+
+	// Parse callback data
 	splitData := strings.Split(callbackData, ".")
+	if len(splitData) < 2 {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "❌ Invalid callback data.",
+			ShowAlert: true,
+		})
+		return nil
+	}
 	userId := stringToInt64(splitData[1])
 
+	// Fetch user information
 	userInfo, err := getUser(userId)
 	if err != nil {
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-			Text: "User not found."})
-
-		_, _, _ = msg.EditText(b, "User not found.", nil)
+			Text:      "❌ User not found.",
+			ShowAlert: true,
+		})
+		_, _, _ = msg.EditText(b, "❌ <b>User not found.</b>", &gotgbot.EditMessageTextOpts{
+			ParseMode: "HTML",
+		})
 		return nil
 	}
 
+	// Prepare inline keyboard with withdrawal option
 	button := gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
-					Text:         "Withdraw Dogs Token",
+					Text:         "💸 Withdraw Dogs Token",
 					CallbackData: fmt.Sprintf("withdraw.%d", userInfo.ID),
 				},
 			},
 		},
 	}
 
-	response := fmt.Sprintf("User ID: %d\nReferrer: %d\nReferred Users: %d\nAccount Balance: %.2f", userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance)
+	// Create a user-friendly response
+	response := fmt.Sprintf(
+		"💰 <b>Wallet Information</b>\n\n"+
+			"🔹 <b>User ID:</b> %d\n"+
+			"🔗 <b>Referrer ID:</b> %d\n"+
+			"🤝 <b>Referred Users:</b> %d\n"+
+			"💵 <b>Account Balance:</b> %.2f",
+		userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance)
+
+	// Edit the message with wallet information and button
 	_, _, _ = msg.EditText(b, response, &gotgbot.EditMessageTextOpts{
 		ReplyMarkup: button,
+		ParseMode:   "HTML",
+	})
+
+	// Respond to callback query
+	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+		Text: "ℹ️ Wallet information loaded.",
 	})
 	return nil
 }
@@ -350,86 +456,166 @@ func walletCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 func addBalance(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
+
+	// Authorization check
 	if user.Id != OwnerID {
-		_, _ = msg.Reply(b, "You are not authorized to use this command.", nil)
+		_, _ = msg.Reply(b, "❌ You are not authorized to use this command.", nil)
 		return nil
 	}
 
+	// Validate arguments
 	args := ctx.Args()[1:]
-
 	if len(args) < 2 {
-		_, _ = msg.Reply(b, "Please provide user ID and amount.\n\nUsage: /add <user_id> 69", nil)
+		_, _ = msg.Reply(b, "❌ Invalid arguments.\n\nUsage: <code>/add &lt;user_id&gt; &lt;amount&gt;</code>", &gotgbot.SendMessageOpts{
+			ParseMode: "HTML",
+		})
 		return nil
 	}
 
+	// Parse user ID
 	userId := stringToInt64(args[0])
-	amount := stringToInt64(args[1])
-
-	err := updateUserBalance(userId, float64(amount))
-	if err != nil {
-		_, _ = msg.Reply(b, err.Error(), nil)
+	if userId <= 0 {
+		_, _ = msg.Reply(b, "❌ Invalid user ID. Please enter a valid numeric user ID.", nil)
 		return nil
 	}
 
-	userInfo, _ := getUser(userId)
-	text := fmt.Sprintf("Balance updated for user %d by %d.\n\nThe new balance is %.2f", userId, amount, userInfo.Balance)
+	// Parse amount
+	amount, err := strconv.ParseFloat(args[1], 64)
+	if err != nil || amount <= 0 {
+		_, _ = msg.Reply(b, "❌ Invalid amount. Please enter a positive number.", nil)
+		return nil
+	}
 
-	_, _ = msg.Reply(b, text, nil)
+	// Add balance to the user
+	err = updateUserBalance(userId, amount)
+	if err != nil {
+		_, _ = msg.Reply(b, fmt.Sprintf("❌ Failed to update balance: %v", err), nil)
+		return nil
+	}
+
+	// Fetch updated user info
+	userInfo, err := getUser(userId)
+	if err != nil {
+		_, _ = msg.Reply(b, "❌ Failed to retrieve updated user information.", nil)
+		return nil
+	}
+
+	// Success message
+	text := fmt.Sprintf(
+		"✅ Successfully updated balance for user <b>%d</b>.\n\n"+
+			"🔹 <b>Amount Added:</b> %.2f\n"+
+			"💵 <b>New Balance:</b> %.2f",
+		userId, amount, userInfo.Balance,
+	)
+	_, _ = msg.Reply(b, text, &gotgbot.SendMessageOpts{
+		ParseMode: "HTML",
+	})
+
 	return nil
 }
 
 func removeBalanceCmd(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
+
+	// Ensure only the owner can execute the command
 	if user.Id != OwnerID {
-		_, _ = msg.Reply(b, "You are not authorized to use this command.", nil)
+		_, _ = msg.Reply(b, "❌ You are not authorized to use this command.", nil)
 		return nil
 	}
 
+	// Validate arguments
 	args := ctx.Args()[1:]
-
 	if len(args) < 2 {
-		_, _ = msg.Reply(b, "Please provide user ID and amount.\n\nUsage: /remove <user_id> 69", nil)
+		_, _ = msg.Reply(b, "❌ Invalid arguments.\n\nUsage: <code>/remove &lt;user_id&gt; &lt;amount&gt;</code>", &gotgbot.SendMessageOpts{
+			ParseMode: "HTML",
+		})
 		return nil
 	}
 
+	// Parse user ID
 	userId := stringToInt64(args[0])
-	amount := stringToInt64(args[1])
-
-	_, err := removeBalance(userId, float64(amount))
-	if err != nil {
-		_, _ = msg.Reply(b, err.Error(), nil)
+	if userId <= 0 {
+		_, _ = msg.Reply(b, "❌ Invalid user ID. Please enter a valid numeric user ID.", nil)
 		return nil
 	}
 
-	userInfo, _ := getUser(userId)
-	text := fmt.Sprintf("Balance updated for user %d by %d.\n\nThe new balance is %.2f", userId, amount, userInfo.Balance)
+	// Parse amount
+	amount, err := strconv.ParseFloat(args[1], 64)
+	if err != nil || amount <= 0 {
+		_, _ = msg.Reply(b, "❌ Invalid amount. Please enter a positive number.", nil)
+		return nil
+	}
 
-	_, _ = msg.Reply(b, text, nil)
+	// Remove balance
+	_, err = removeBalance(userId, amount)
+	if err != nil {
+		_, _ = msg.Reply(b, fmt.Sprintf("❌ Failed to update balance: %v", err), nil)
+		return nil
+	}
+
+	// Fetch updated user info
+	userInfo, err := getUser(userId)
+	if err != nil {
+		_, _ = msg.Reply(b, "❌ Failed to retrieve updated user information.", nil)
+		return nil
+	}
+
+	// Success message
+	text := fmt.Sprintf(
+		"✅ Successfully updated balance for user <b>%d</b>.\n\n"+
+			"🔹 <b>Amount Deducted:</b> %.2f\n"+
+			"💵 <b>New Balance:</b> %.2f",
+		userId, amount, userInfo.Balance,
+	)
+	_, _ = msg.Reply(b, text, &gotgbot.SendMessageOpts{
+		ParseMode: "HTML",
+	})
+
 	return nil
 }
-
 func updateAccNo(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
 	args := ctx.Args()[1:]
 
+	// Check if the user provided an account number
 	if len(args) < 1 {
-		_, _ = msg.Reply(b, "Please provide account number.\n\nUsage: /accno 123456789", nil)
+		_, _ = msg.Reply(b, "❌ Please provide an account number.\n\nUsage: /accno <account_number>", nil)
 		return nil
 	}
 
-	accNo := stringToInt64(args[0])
-	err := updateUserAccNo(user.Id, accNo)
+	// Validate the account number (should be a valid integer)
+	accNo, err := stringToInt64(args[0])
+	if err != nil || accNo <= 0 {
+		_, _ = msg.Reply(b, "❌ Invalid account number. Please enter a valid positive number.", nil)
+		return nil
+	}
+
+	// Update the account number in the database
+	err = updateUserAccNo(user.Id, accNo)
 	if err != nil {
-		_, _ = msg.Reply(b, err.Error(), nil)
+		_, _ = msg.Reply(b, fmt.Sprintf("❌ Failed to update account number: %v", err), nil)
 		return nil
 	}
 
-	userInfo, _ := getUser(user.Id)
-	text := fmt.Sprintf("Account number updated for user %d by %d.\n\nThe new account number is %d", user.Id, accNo, userInfo.AccNo)
+	// Retrieve the updated user info
+	userInfo, err := getUser(user.Id)
+	if err != nil {
+		_, _ = msg.Reply(b, "❌ Failed to retrieve updated user information.", nil)
+		return nil
+	}
 
-	_, _ = msg.Reply(b, text, nil)
+	// Success message with updated account number
+	text := fmt.Sprintf(
+		"✅ Account number successfully updated for user <b>%d</b>.\n\n"+
+			"🔹 <b>New Account Number:</b> %d",
+		user.Id, userInfo.AccNo,
+	)
+	_, _ = msg.Reply(b, text, &gotgbot.SendMessageOpts{
+		ParseMode: "HTML",
+	})
+
 	return nil
 }
 
