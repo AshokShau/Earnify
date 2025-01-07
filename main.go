@@ -714,8 +714,20 @@ func broadcast(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func cancel(b *gotgbot.Bot, ctx *ext.Context) error {
+	button := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text:         " Home",
+					CallbackData: "home",
+				},
+			},
+		},
+	}
+
 	_, err := ctx.EffectiveMessage.Reply(b, "❌ <b>Conversation cancelled</b>", &gotgbot.SendMessageOpts{
-		ParseMode: "html",
+		ParseMode:   "html",
+		ReplyMarkup: button,
 	})
 
 	if err != nil {
@@ -733,7 +745,7 @@ func withdrawal(b *gotgbot.Bot, ctx *ext.Context) error {
 		Text:      "💸 Please enter the amount you'd like to withdraw.",
 		ShowAlert: true,
 	})
-	_, _, err := msg.EditText(b, "💸 Please send the amount you wish to withdraw.", &gotgbot.EditMessageTextOpts{
+	_, _, err := msg.EditText(b, "💸 Please send the amount you wish to withdraw.\nFor cancel use /cancel", &gotgbot.EditMessageTextOpts{
 		ParseMode: "html",
 	})
 
