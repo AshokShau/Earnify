@@ -84,28 +84,28 @@ func getUser(userID int64) (*User, error) {
 	return &user, nil
 }
 
-// Retrieve all users referred by a specific user
-func getReferredUsers(referrerID int64) ([]User, error) {
-	// Fetch the referrer's referred_users list
-	referrer, err := getUser(referrerID)
-	if err != nil {
-		return nil, err
-	}
+// // Retrieve all users referred by a specific user
+// func getReferredUsers(referrerID int64) ([]User, error) {
+// 	// Fetch the referrer's referred_users list
+// 	referrer, err := getUser(referrerID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// Fetch details of all referred users
-	filter := bson.M{"_id": bson.M{"$in": referrer.ReferredUsers}}
-	cursor, err := userColl.Find(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve referred users: %v", err)
-	}
-	defer cursor.Close(ctx)
+// 	// Fetch details of all referred users
+// 	filter := bson.M{"_id": bson.M{"$in": referrer.ReferredUsers}}
+// 	cursor, err := userColl.Find(ctx, filter)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to retrieve referred users: %v", err)
+// 	}
+// 	defer cursor.Close(ctx)
 
-	var referredUsers []User
-	if err = cursor.All(ctx, &referredUsers); err != nil {
-		return nil, fmt.Errorf("failed to decode referred users: %v", err)
-	}
-	return referredUsers, nil
-}
+// 	var referredUsers []User
+// 	if err = cursor.All(ctx, &referredUsers); err != nil {
+// 		return nil, fmt.Errorf("failed to decode referred users: %v", err)
+// 	}
+// 	return referredUsers, nil
+// }
 
 // Update a user's balance
 func updateUserBalance(userID int64, amount float64) error {

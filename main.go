@@ -27,6 +27,7 @@ var (
 	Port       string
 	MongoDBURI string
 	OwnerID    int64
+	LoggerID   int64
 )
 
 func main() {
@@ -44,8 +45,12 @@ func main() {
 		log.Fatal("OWNER_ID is not set")
 	}
 
-	clientOptions := options.Client().ApplyURI(MongoDBURI)
+	LoggerID, err = strconv.ParseInt(os.Getenv("LOGGER_ID"), 10, 64)
+	if err != nil {
+		log.Fatal("LOGGER_ID is not set")
+	}
 
+	clientOptions := options.Client().ApplyURI(MongoDBURI)
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
@@ -112,7 +117,6 @@ func main() {
 			SecretToken: secretToken,
 		})
 	} else {
-		log.Println("Starting polling...")
 		err = updater.StartPolling(bot, &ext.PollingOpts{
 			DropPendingUpdates: true,
 			GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
@@ -132,6 +136,7 @@ func main() {
 	log.Printf("%s has been started...\n", bot.User.Username)
 	updater.Idle()
 }
+
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
@@ -144,7 +149,7 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text: "👤 Owner",
-					Url:  "https://t.me/MaybeRadhaa",
+					Url:  fmt.Sprintf("tg://user?id=%d", OwnerID),
 				},
 			},
 			{
