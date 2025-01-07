@@ -740,12 +740,48 @@ func cancel(b *gotgbot.Bot, ctx *ext.Context) error {
 func withdrawal(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	query := ctx.Update.CallbackQuery
+	user := ctx.EffectiveUser
+
+	userInfo, err := getUser(user.Id)
+	if err != nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "❌ User not found.",
+			ShowAlert: true,
+		})
+		_, _, _ = msg.EditText(b, "❌ <b>User not found.</b>", &gotgbot.EditMessageTextOpts{
+			ParseMode: "HTML",
+		})
+		return nil
+	}
+
+	if userInfo.Balance <= 0 {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "❌ You have no balance to withdraw.",
+			ShowAlert: true,
+		})
+		_, _, _ = msg.EditText(b, "❌ <b>You have no balance to withdraw.</b>", &gotgbot.EditMessageTextOpts{
+			ParseMode: "HTML",
+		})
+		return nil
+	}
+
+	if userInfo.AccNo == 0 {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "❌ You have no account number to withdraw to.",
+			ShowAlert: true,
+		})
+		_, _, _ = msg.EditText(b, "❌ <b>You have no account number to withdraw to.</b>", &gotgbot.EditMessageTextOpts{
+			ParseMode: "HTML",
+		})
+		return nil
+	}
 
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 		Text:      "💸 Please enter the amount you'd like to withdraw.",
 		ShowAlert: true,
 	})
-	_, _, err := msg.EditText(b, "💸 Please send the amount you wish to withdraw.\nFor cancel use /cancel", &gotgbot.EditMessageTextOpts{
+
+	_, _, err = msg.EditText(b, "💸 Please send the amount you wish to withdraw.\nFor cancel use /cancel", &gotgbot.EditMessageTextOpts{
 		ParseMode: "html",
 	})
 
