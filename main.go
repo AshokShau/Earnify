@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,15 +20,16 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-var secretToken = "efjernfernferfjfjn32nro"
-var allowedUpdates = []string{"message", "callback_query"}
-
 var (
-	WebhookURL string
-	Port       string
-	MongoDBURI string
-	OwnerID    int64
-	LoggerID   int64
+	WebhookURL  string
+	Port        string
+	MongoDBURI  string
+	secretToken string
+	OwnerID     int64
+	LoggerID    int64
+
+	ctx            = context.TODO()
+	allowedUpdates = []string{"message", "callback_query"}
 )
 
 func main() {
@@ -36,9 +38,6 @@ func main() {
 	if token == "" {
 		log.Fatal("TOKEN is not set")
 	}
-	WebhookURL = os.Getenv("WEBHOOK_URL")
-	Port = os.Getenv("PORT")
-	MongoDBURI = os.Getenv("MONGO_URI")
 
 	OwnerID, err = strconv.ParseInt(os.Getenv("OWNER_ID"), 10, 64)
 	if err != nil {
@@ -49,6 +48,16 @@ func main() {
 	if err != nil {
 		log.Fatal("LOGGER_ID is not set")
 	}
+
+	MongoDBURI = os.Getenv("MONGO_URI")
+
+	secretToken = os.Getenv("SECRET_TOKEN")
+	if secretToken == "" {
+		secretToken = "OopsNoSECRET_TOKENFoundTimeToCallSherlock"
+	}
+
+	WebhookURL = os.Getenv("WEBHOOK_URL")
+	Port = os.Getenv("PORT")
 
 	clientOptions := options.Client().ApplyURI(MongoDBURI)
 	client, err := mongo.Connect(ctx, clientOptions)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,11 +18,8 @@ type User struct {
 }
 
 var userColl *mongo.Collection
-var ctx = context.TODO()
 
-// Add a new user to the database
 func addUser(user User) error {
-	// Ensure the user is unique by checking both _id and acc_no
 	filter := bson.M{"$or": []bson.M{
 		{"_id": user.ID},
 	}}
@@ -45,7 +41,6 @@ func addUser(user User) error {
 	return nil
 }
 
-// Update a user's referrer and the referrer's referred users
 func referUser(referrerID, newUserID int64) error {
 	// Check if referrer exists
 	referrer := User{}
@@ -54,7 +49,6 @@ func referUser(referrerID, newUserID int64) error {
 		return fmt.Errorf("referrer with ID %d does not exist", referrerID)
 	}
 
-	// Add the new user
 	newUser := User{
 		ID:       newUserID,
 		Referrer: referrerID,
@@ -66,7 +60,6 @@ func referUser(referrerID, newUserID int64) error {
 		return err
 	}
 
-	// Update the referrer to add the new user to their referred_users
 	_, err = userColl.UpdateOne(ctx, bson.M{"_id": referrerID}, bson.M{"$push": bson.M{"referred_users": newUserID}})
 	if err != nil {
 		return fmt.Errorf("failed to update referrer's referred users: %v", err)
@@ -74,7 +67,6 @@ func referUser(referrerID, newUserID int64) error {
 	return nil
 }
 
-// Retrieve a user's details
 func getUser(userID int64) (*User, error) {
 	user := User{}
 	err := userColl.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
@@ -107,7 +99,6 @@ func getUser(userID int64) (*User, error) {
 // 	return referredUsers, nil
 // }
 
-// Update a user's balance
 func updateUserBalance(userID int64, amount float64) error {
 	_, err := userColl.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$inc": bson.M{"balance": amount}})
 	if err != nil {
@@ -120,6 +111,7 @@ func removeBalance(userID int64, amount float64) (float64, error) {
 	if amount <= 0 {
 		return 0, fmt.Errorf("amount to remove must be greater than zero")
 	}
+
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$inc": bson.M{"balance": -amount}}
 	options := options.FindOneAndUpdate().SetReturnDocument(options.After)
@@ -143,7 +135,6 @@ func removeBalance(userID int64, amount float64) (float64, error) {
 	return updatedUser.Balance, nil
 }
 
-// Update a user's account number
 func updateUserAccNo(userID int64, accNo int64) error {
 	_, err := userColl.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": bson.M{"acc_no": accNo}})
 	if err != nil {
