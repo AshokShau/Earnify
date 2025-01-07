@@ -184,24 +184,6 @@ func main() {
 	updater.Idle()
 }
 
-func onlyFloat64(msg *gotgbot.Message) bool {
-	if msg.Text != "" {
-		_, err := strconv.ParseFloat(msg.Text, 64)
-		return err == nil
-	} else {
-		return false
-	}
-}
-
-func onlyInt64(msg *gotgbot.Message) bool {
-	if msg.Text != "" {
-		_, err := strconv.ParseInt(msg.Text, 10, 64)
-		return err == nil
-	} else {
-		return false
-	}
-}
-
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
@@ -279,6 +261,7 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 				IsDisabled: true,
 			},
 		})
+
 		return nil
 	}
 
@@ -298,6 +281,7 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(b, "❌ <b>The referral code is not valid.</b>\n\nPlease check with the person who referred you.", &gotgbot.SendMessageOpts{
 				ParseMode: "HTML",
 			})
+
 			return nil
 		}
 
@@ -308,12 +292,13 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(b, "⚠️ <b>Failed to register with the referral. Please try again.</b>", &gotgbot.SendMessageOpts{
 				ParseMode: "HTML",
 			})
+
 			return nil
 		}
 		_, _ = b.SendMessage(referrerID, fmt.Sprintf(
 			"🎉 <b>Referral Successful!</b>\n\n"+
 				"👤 You referred <b>%s</b> (%d) successfully!\n"+
-				"💵 You’ve earned <b>10.00 DOGS tokens</b>! Keep sharing and earning more! 🚀",
+				"💵 You’ve earned <b>10.00 tokens</b>! Keep sharing and earning more! 🚀",
 			user.FirstName, user.Id), &gotgbot.SendMessageOpts{
 			ParseMode: "HTML",
 		})
@@ -337,6 +322,7 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(b, "❌ <b>Failed to register. Please try again later.</b>", &gotgbot.SendMessageOpts{
 				ParseMode: "HTML",
 			})
+
 			return nil
 		}
 	}
@@ -356,6 +342,7 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 			IsDisabled: true,
 		},
 	})
+
 	return nil
 }
 func help(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -393,6 +380,7 @@ Here are the commands you can use:
 		ParseMode:   "HTML",
 		ReplyMarkup: button,
 	})
+
 	return nil
 }
 
@@ -407,6 +395,7 @@ func info(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		userId = stringToInt64(args[0])
 	}
+
 	userInfo, err := getUser(userId)
 	if err != nil {
 		_, _ = msg.Reply(b, "❌ <b>User not found.</b>\n\nPlease check the User ID and try again.", &gotgbot.SendMessageOpts{
@@ -427,6 +416,7 @@ func info(b *gotgbot.Bot, ctx *ext.Context) error {
 	_, _ = msg.Reply(b, response, &gotgbot.SendMessageOpts{
 		ParseMode: "HTML",
 	})
+
 	return nil
 }
 
@@ -480,6 +470,7 @@ func infoCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 		Text: "ℹ️ User information loaded successfully.",
 	})
+
 	_, _, _ = msg.EditText(b, response, &gotgbot.EditMessageTextOpts{
 		ParseMode:   "HTML",
 		ReplyMarkup: button,
@@ -501,16 +492,18 @@ func walletCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil
 	}
 	userId := stringToInt64(splitData[1])
-
 	userInfo, err := getUser(userId)
+
 	if err != nil {
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 			Text:      "❌ User not found.",
 			ShowAlert: true,
 		})
+
 		_, _, _ = msg.EditText(b, "❌ <b>User not found.</b>", &gotgbot.EditMessageTextOpts{
 			ParseMode: "HTML",
 		})
+
 		return nil
 	}
 
@@ -661,6 +654,7 @@ func removeBalanceCmd(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	return nil
 }
+
 func updateAccNo(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
@@ -742,7 +736,7 @@ func broadcast(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	users, err := getAllUsers()
 	if err != nil {
-		_, _ = msg.Reply(b, "Error getting users.\n\n"+err.Error(), nil)
+		_, _ = msg.Reply(b, "Error getting users.\n\n"+CustomError(err).Error(), nil)
 		return err
 	}
 
@@ -925,7 +919,7 @@ func withdrawalAsk(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Get user data
 	userInfo, err := getUser(user.Id)
 	if err != nil {
-		_, _ = msg.Reply(b, "❌ Something went wrong. "+err.Error()+" Please try again later.", nil)
+		_, _ = msg.Reply(b, "❌ Something went wrong. "+CustomError(err).Error()+" Please try again later.", nil)
 		return handlers.EndConversation()
 	}
 
@@ -960,11 +954,12 @@ func withdrawalAsk(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Send to logger
 	_, err = b.SendMessage(LoggerID, loggerMsg, &gotgbot.SendMessageOpts{ReplyMarkup: button, ParseMode: "html"})
 	if err != nil {
-		_, _ = msg.Reply(b, "❌ Failed to send withdrawal request to the logger. "+err.Error(), nil)
+		_, _ = msg.Reply(b, "❌ Failed to send withdrawal request to the logger. "+CustomError(err).Error(), nil)
 		return handlers.EndConversation()
 	}
 
 	_, _ = msg.Reply(b, "🎉 Withdrawal Request Submitted! 🎉\n\n- 🕒 Processing Time: Please allow a few hours for our team to review and approve your request.", nil)
+
 	return handlers.EndConversation()
 }
 
@@ -1016,8 +1011,9 @@ Thank you for trusting us! 🚀`, amount)
 
 	_, err = b.SendMessage(userID, text, nil)
 	if err != nil {
-		_, _ = msg.Reply(b, "❌ Failed to send the approved withdrawal message. "+err.Error(), nil)
+		_, _ = msg.Reply(b, "❌ Failed to send the approved withdrawal message. "+CustomError(err).Error(), nil)
 	}
+
 	return nil
 }
 
@@ -1074,5 +1070,6 @@ func home(b *gotgbot.Bot, ctx *ext.Context) error {
 		ParseMode:   "HTML",
 		ReplyMarkup: button,
 	})
+
 	return nil
 }
