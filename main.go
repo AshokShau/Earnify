@@ -356,8 +356,9 @@ func info(b *gotgbot.Bot, ctx *ext.Context) error {
 			"🔹 <b>User ID:</b> %d\n"+
 			"🔗 <b>Referrer ID:</b> %d\n"+
 			"🤝 <b>Referred Users:</b> %d\n"+
-			"💰 <b>Account Balance:</b> %.2f\n",
-		userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance)
+			"💰 <b>Account Balance:</b> %.2f\n"+
+			"<b>Account Number</b> %d",
+		userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance, userInfo.AccNo)
 
 	_, _ = msg.Reply(b, response, &gotgbot.SendMessageOpts{
 		ParseMode: "HTML",
@@ -398,8 +399,9 @@ func infoCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			"🔹 <b>User ID:</b> %d\n"+
 			"🔗 <b>Referrer ID:</b> %d\n"+
 			"🤝 <b>Referred Users:</b> %d\n"+
-			"💰 <b>Account Balance:</b> %.2f",
-		userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance)
+			"💰 <b>Account Balance:</b> %.2f"+
+			"<b>Account Number</b> %d",
+		userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance, userInfo.AccNo)
 
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 		Text: "ℹ️ User information loaded successfully.",
@@ -750,7 +752,7 @@ func withdrawalAsk(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	}
 
-	loggerMsg := fmt.Sprintf("💰 <b>%s</b> requested a withdrawal of <b>%.2f\n\nUser AccNo: <code>%d</code>", user.FirstName, amount, userInfo.AccNo)
+	loggerMsg := fmt.Sprintf("💰 <b>%s</b> requested a withdrawal of %.2f\n\nUser AccNo: <code>%d</code>", user.FirstName, amount, userInfo.AccNo)
 
 	_, err = b.SendMessage(LoggerID, loggerMsg, &gotgbot.SendMessageOpts{ReplyMarkup: button, ParseMode: "html"})
 	if err != nil {
@@ -804,7 +806,7 @@ func confirmWithdrawal(b *gotgbot.Bot, ctx *ext.Context) error {
 
 ✅ Your withdrawal request has been successfully approved!  
 
-Amout: %f
+Amout: %.2f
 
 Thank you for trusting us! 🚀`, amount)
 
