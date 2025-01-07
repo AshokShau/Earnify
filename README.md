@@ -46,7 +46,7 @@
 
 #### Manual installation:
 
-1. Clone the repository: `git clone https://github.com/yourusername/earnify.git && cd earnify`
+1. Clone the repository: `git clone https://github.com/AshokShau/earnify.git && cd earnify`
 2. Set up the environment: `cp sample.env .env`
 3. Build the project: `go build`
 4. Run the bot: `./earnify`
