@@ -183,6 +183,23 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := ctx.EffectiveUser
 	args := ctx.Args()[1:]
 
+	var userArgs string
+	if len(args) > 0 {
+		userArgs = args[0]
+	} else {
+		userArgs = ""
+	}
+
+	isMember, err := fSub(b, user.Id, userArgs)
+	if err != nil {
+		_, _ = msg.Reply(b, "❌ An error occurred. Please try again later.", nil)
+		return fmt.Errorf("start: %v", err)
+	}
+
+	if !isMember {
+		return ext.EndGroups
+	}
+
 	referUrl := fmt.Sprintf("https://t.me/%s?start=%d", b.User.Username, user.Id)
 
 	button := gotgbot.InlineKeyboardMarkup{
@@ -243,16 +260,6 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	var referrerID int64
 	if len(args) > 0 {
-		isMember, err := fSub(b, user.Id, args[0])
-		if err != nil {
-			_, _ = msg.Reply(b, "❌ An error occurred. Please try again later.", nil)
-			return fmt.Errorf("start: %v", err)
-		}
-
-		if !isMember {
-			return ext.EndGroups
-		}
-
 		referralCode := strings.TrimSpace(args[0])
 		referrerID, err = strconv.ParseInt(referralCode, 10, 64)
 		if err != nil || referrerID <= 0 {
