@@ -21,7 +21,10 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-const WITHDWAWL = "Withdrawal"
+const (
+	WITHDWAWL = "Withdrawal"
+	SET_ACC   = "SetAccount"
+)
 
 var (
 	WebhookURL     string
@@ -130,6 +133,18 @@ func main() {
 		},
 	))
 
+	dispatcher.AddHandler(handlers.NewConversation(
+		[]ext.Handler{handlers.NewCallback(callbackquery.Prefix("setAccNo"), setAccNo)},
+		map[string][]ext.Handler{
+			SET_ACC: {handlers.NewMessage(onlyInt64, setAccAsk)},
+		},
+		&handlers.ConversationOpts{
+			Exits:        []ext.Handler{handlers.NewCommand("cancel", cancel)},
+			StateStorage: conversation.NewInMemoryStorage(conversation.KeyStrategySenderAndChat),
+			AllowReEntry: true,
+		},
+	))
+
 	updater := ext.NewUpdater(dispatcher, nil)
 
 	if WebhookURL != "" && Port != "" {
@@ -172,6 +187,15 @@ func main() {
 func onlyFloat64(msg *gotgbot.Message) bool {
 	if msg.Text != "" {
 		_, err := strconv.ParseFloat(msg.Text, 64)
+		return err == nil
+	} else {
+		return false
+	}
+}
+
+func onlyInt64(msg *gotgbot.Message) bool {
+	if msg.Text != "" {
+		_, err := strconv.ParseInt(msg.Text, 10, 64)
 		return err == nil
 	} else {
 		return false
@@ -494,6 +518,12 @@ func walletCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
+					Text:         "🆔 Set Account Number",
+					CallbackData: fmt.Sprintf("setAccNo.%d", userInfo.ID),
+				},
+			},
+			{
+				{
 					Text:         "💸 Withdraw",
 					CallbackData: fmt.Sprintf("withdraw.%d", userInfo.ID),
 				},
@@ -757,6 +787,68 @@ func cancel(b *gotgbot.Bot, ctx *ext.Context) error {
 		return fmt.Errorf("failed to send cancel message: %w", err)
 	}
 
+	return handlers.EndConversation()
+}
+
+func setAccNo(b *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	user := ctx.EffectiveUser
+	query := ctx.CallbackQuery
+
+	_, err := getUser(user.Id)
+	if err != nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "❌ User not found.",
+			ShowAlert: true,
+		})
+		_, _, _ = msg.EditText(b, "❌ <b>User not found.</b>", &gotgbot.EditMessageTextOpts{
+			ParseMode: "HTML",
+		})
+		return nil
+	}
+
+	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+		Text:      "✅ To set the account number, please enter the account number.",
+		ShowAlert: true,
+	})
+
+	_, _, err = msg.EditText(b, "✅ To set the account number, please enter the account number.\nTo cancel, click /cancel .", &gotgbot.EditMessageTextOpts{
+		ParseMode: "html",
+	})
+
+	if err != nil {
+		log.Printf("Error while editing message: %v", err)
+		_, _ = msg.Reply(b, "❌ Something went wrong while processing your request. Please try again.", nil)
+		return handlers.EndConversation()
+	}
+
+	return handlers.NextConversationState(SET_ACC)
+}
+
+func setAccAsk(b *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	user := ctx.EffectiveUser
+
+	_, err := getUser(user.Id)
+	if err != nil {
+		_, _ = msg.Reply(b, "❌ User not found.", nil)
+		return nil
+	}
+
+	accNoInt64 := stringToInt64(msg.Text)
+	if accNoInt64 <= 0 {
+		_, _ = msg.Reply(b, "❌ Invalid account number. Please enter a valid positive number.", nil)
+		return nil
+	}
+
+	err = updateUserAccNo(user.Id, accNoInt64)
+	if err != nil {
+		log.Printf("Error while setting account number for user %d: %v", user.Id, err)
+		_, _ = msg.Reply(b, "❌ Something went wrong while processing your request. Please try again.", nil)
+		return handlers.EndConversation()
+	}
+
+	_, _ = msg.Reply(b, "✅ Account number set successfully.", nil)
 	return handlers.EndConversation()
 }
 
