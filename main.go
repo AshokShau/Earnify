@@ -110,6 +110,7 @@ func main() {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("info"), infoCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("wallet"), walletCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("confirm_withdrawal"), confirmWithdrawal))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("home"), home))
 
 	dispatcher.AddHandler(handlers.NewConversation(
 		[]ext.Handler{handlers.NewCallback(callbackquery.Prefix("withdraw"), withdrawal)},
@@ -330,8 +331,20 @@ Here are the commands you can use:
 
 ⚠️ <i>Note: Owner commands are restricted to the bot owner only.</i>
 `
+
+	button := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text:         " Home",
+					CallbackData: "home",
+				},
+			},
+		},
+	}
 	_, _ = msg.Reply(b, text, &gotgbot.SendMessageOpts{
-		ParseMode: "HTML",
+		ParseMode:   "HTML",
+		ReplyMarkup: button,
 	})
 	return nil
 }
@@ -398,12 +411,22 @@ func infoCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil
 	}
 
+	button := gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text:         " Home",
+					CallbackData: "home",
+				},
+			},
+		},
+	}
 	response := fmt.Sprintf(
 		"👤 <b>User Information</b>\n\n"+
 			"🔹 <b>User ID:</b> %d\n"+
 			"🔗 <b>Referrer ID:</b> %d\n"+
 			"🤝 <b>Referred Users:</b> %d\n"+
-			"💰 <b>Account Balance:</b> %.2f"+
+			"💰 <b>Account Balance:</b> %.2f\n"+
 			"<b>Account Number</b> %d",
 		userInfo.ID, userInfo.Referrer, len(userInfo.ReferredUsers), userInfo.Balance, userInfo.AccNo)
 
@@ -411,7 +434,8 @@ func infoCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		Text: "ℹ️ User information loaded successfully.",
 	})
 	_, _, _ = msg.EditText(b, response, &gotgbot.EditMessageTextOpts{
-		ParseMode: "HTML",
+		ParseMode:   "HTML",
+		ReplyMarkup: button,
 	})
 
 	return nil
@@ -449,6 +473,10 @@ func walletCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 				{
 					Text:         "💸 Withdraw",
 					CallbackData: fmt.Sprintf("withdraw.%d", userInfo.ID),
+				},
+				{
+					Text:         " Home",
+					CallbackData: "home",
 				},
 			},
 		},
@@ -827,5 +855,61 @@ Thank you for trusting us! 🚀`, amount)
 	if err != nil {
 		_, _ = msg.Reply(b, "❌ Failed to send the approved withdrawal message. "+err.Error(), nil)
 	}
+	return nil
+}
+
+func home(b *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	user := ctx.EffectiveUser
+	quary := ctx.CallbackQuery
+
+	referUrl := fmt.Sprintf("https://t.me/%s?start=%d", b.User.Username, user.Id)
+
+	button := gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text: "👤 Owner",
+					Url:  fmt.Sprintf("tg://user?id=%d", OwnerID),
+				},
+			},
+			{
+				{
+					Text: "🔗 Refer & Earn",
+					Url:  fmt.Sprintf("https://t.me/share/url?url=%s", referUrl),
+				},
+				{
+					Text:         "ℹ️ Info",
+					CallbackData: fmt.Sprintf("info.%d", user.Id),
+				},
+			},
+			{
+				{
+					Text:         "💼 Wallet",
+					CallbackData: fmt.Sprintf("wallet.%d", user.Id),
+				},
+				{
+					Text:         "💸 Withdraw",
+					CallbackData: fmt.Sprintf("withdraw.%d", user.Id),
+				},
+			},
+		},
+	}
+	_, _ = quary.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+		Text: "🔙 Back to Main Menu",
+	})
+
+	existingUser, _ := getUser(user.Id)
+	response := fmt.Sprintf(
+		"👋 <b>Welcome back, %s!</b>\n\n"+
+			"💰 <b>Balance:</b> %.2f\n"+
+			"🤝 <b>Referred Users:</b> %d\n\n"+
+			"🚀 Keep earning rewards by referring your friends!",
+		user.FirstName, existingUser.Balance, len(existingUser.ReferredUsers))
+
+	_, _, _ = msg.EditText(b, response, &gotgbot.EditMessageTextOpts{
+		ParseMode:   "HTML",
+		ReplyMarkup: button,
+	})
 	return nil
 }
