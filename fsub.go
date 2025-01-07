@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
@@ -92,6 +93,8 @@ func fSub(b *gotgbot.Bot, userId int64, arg string) (bool, error) {
 
 			return false, nil
 		}
+
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	return true, nil

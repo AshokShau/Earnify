@@ -11,7 +11,10 @@
 - **Admin Panel**: Admins can manage balances, stats, and broadcast messages.
 - **User Information**: Users can view their account details, including referred users and account balance.
 - **Wallet System**: Users can withdraw their rewards through the wallet system.
-
+- **Account Number Management**: Users can set or update their account number.
+- **Statistics**: Admins can view bot statistics.
+- **Broadcast Messages**: Admins can broadcast messages to all users.
+- **Force Subscription**: Users can be forced to subscribe to the bot's channel.
 ---
 
 ## Commands
@@ -41,8 +44,15 @@
 - **Telegram Bot Token**: You need to create a bot on Telegram and get a bot token from [BotFather](https://core.telegram.org/bots#botfather).
 
 ### Installation:
+
 #### Docker installation: (Recommended)
-- Soon
+
+1. Clone the repository: `git clone https://github.com/AshokShau/earnify.git && cd earnify`
+2. Set up the environment: `cp sample.env .env`
+3. Build the Docker image: `docker build -t earnify .`
+4. Run the Docker container: `docker run -p 8080:8080 -d earnify`
+
+---
 
 #### Manual installation:
 
