@@ -94,3 +94,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Telegram](https://t.me/AshokShau)
 
 ---
+
+## 📝 Note
+
+This repository, **Earnify**, was born out of pure boredom and a sprinkle of curiosity. While it serves its purpose as a functional bot to manage earnings and more, future updates are highly dependent on my mood. 😴 
+
+That means updates might roll out when inspiration strikes—or maybe not at all. It’s a bit like a gamble, but hey, isn’t life the same? 🎲
+
+Feel free to fork, contribute, or just enjoy it as-is. Happy earning! 💸
