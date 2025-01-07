@@ -696,20 +696,22 @@ func cancel(b *gotgbot.Bot, ctx *ext.Context) error {
 func withdrawal(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	query := ctx.Update.CallbackQuery
+
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-		Text:      "Plz send amout to withdrawl",
+		Text:      "💸 Please enter the amount you'd like to withdraw.",
 		ShowAlert: true,
 	})
-
-	_, _, err := msg.EditText(b, "Plz send amout to withdrawl", &gotgbot.EditMessageTextOpts{
+	_, _, err := msg.EditText(b, "💸 Please send the amount you wish to withdraw.", &gotgbot.EditMessageTextOpts{
 		ParseMode: "html",
 	})
 
 	if err != nil {
-		log.Printf("error while editing message: %v", err)
+		log.Printf("❌ Error while editing message: %v", err)
+		_, _ = msg.Reply(b, "❌ Something went wrong while processing your request. Please try again.", nil)
 		return handlers.EndConversation()
 	}
 
+	// Proceed to the next conversation state
 	return handlers.NextConversationState(WITHDWAWL)
 }
 
@@ -718,49 +720,56 @@ func withdrawalAsk(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := ctx.EffectiveUser
 	text := msg.GetText()
 
+	// Parse the withdrawal amount
 	amount, err := strconv.ParseFloat(text, 64)
 	if err != nil {
-		_, _ = msg.Reply(b, "❌ Invalid amount.\nTry again with a valid amount", nil)
+		_, _ = msg.Reply(b, "❌ Oops! Invalid amount. Please enter a valid number to withdraw. 💸", nil)
 		return handlers.NextConversationState(WITHDWAWL)
 	}
 
+	// Get user data
 	userInfo, err := getUser(user.Id)
 	if err != nil {
-		_, _ = msg.Reply(b, "❌ "+err.Error(), nil)
+		_, _ = msg.Reply(b, "❌ Something went wrong. "+err.Error()+" Please try again later.", nil)
 		return handlers.EndConversation()
 	}
 
+	// Check if the user has sufficient balance
 	if amount > userInfo.Balance {
-		_, _ = msg.Reply(b, "❌ Insufficient balance.\nTry again with a valid amount", nil)
+		_, _ = msg.Reply(b, "❌ Insufficient balance. 💳 Please try again with a valid amount.", nil)
 		return handlers.NextConversationState(WITHDWAWL)
 	}
 
+	// Remove balance from user account
 	_, err = removeBalance(msg.From.Id, amount)
 	if err != nil {
-		_, _ = msg.Reply(b, "❌ "+err.Error(), nil)
+		_, _ = msg.Reply(b, "❌ Failed to process your withdrawal request. "+err.Error(), nil)
 		return handlers.EndConversation()
 	}
 
+	// Send confirmation button
 	button := gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
-					Text:         "Confirm",
+					Text:         "✅ Confirm Withdrawal",
 					CallbackData: fmt.Sprintf("confirm_withdrawal.%d.%f", user.Id, amount),
 				},
 			},
 		},
 	}
 
+	// Log the withdrawal request
 	loggerMsg := fmt.Sprintf("💰 <b>%s</b> requested a withdrawal of %.2f\n\nUser AccNo: <code>%d</code>", user.FirstName, amount, userInfo.AccNo)
 
+	// Send to logger
 	_, err = b.SendMessage(LoggerID, loggerMsg, &gotgbot.SendMessageOpts{ReplyMarkup: button, ParseMode: "html"})
 	if err != nil {
-		_, _ = msg.Reply(b, "❌ Failed to send withdrawal msg in looger id."+err.Error(), nil)
+		_, _ = msg.Reply(b, "❌ Failed to send withdrawal request to the logger. "+err.Error(), nil)
 		return handlers.EndConversation()
 	}
 
-	_, _ = msg.Reply(b, "🎉 Withdrawal Request Submitted Successfully! 🎉\n\n- 🛠 Processing Time: Please allow a few hours for our team to review and approve your request.  ", nil)
+	_, _ = msg.Reply(b, "🎉 Withdrawal Request Submitted! 🎉\n\n- 🕒 Processing Time: Please allow a few hours for our team to review and approve your request.", nil)
 	return handlers.EndConversation()
 }
 
@@ -797,22 +806,22 @@ func confirmWithdrawal(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-		Text:      "✅ Processing...",
-		ShowAlert: true,
+		Text: "✅ Processing withdrawal request...",
 	})
 
-	_, _, _ = msg.EditText(b, fmt.Sprintf("✅  Done : Amout %f", amount), nil)
-	text := fmt.Sprintf(`🎉 Withdrawal Approved! 🎉  
+	_, _, _ = msg.EditText(b, fmt.Sprintf("✅ Done! Amount of %.2f successfully withdrawn.", amount), nil)
 
-✅ Your withdrawal request has been successfully approved!  
+	text := fmt.Sprintf(`🎉 Withdrawal Approved! 🎉
 
-Amout: %.2f
+✅ Your withdrawal request has been successfully approved!
+
+💸 Amount: %.2f
 
 Thank you for trusting us! 🚀`, amount)
 
 	_, err = b.SendMessage(userID, text, nil)
 	if err != nil {
-		_, _ = msg.Reply(b, "Failed to msg approved msg"+err.Error(), nil)
+		_, _ = msg.Reply(b, "❌ Failed to send the approved withdrawal message. "+err.Error(), nil)
 	}
 	return nil
 }
