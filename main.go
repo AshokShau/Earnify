@@ -201,6 +201,10 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 					Text:         "💼 Wallet",
 					CallbackData: fmt.Sprintf("wallet.%d", user.Id),
 				},
+				{
+					Text:         "💸 Withdraw",
+					CallbackData: fmt.Sprintf("withdraw.%d", user.Id),
+				},
 			},
 		},
 	}
