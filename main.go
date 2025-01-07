@@ -13,12 +13,15 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/conversation"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	_ "github.com/joho/godotenv/autoload"
 )
+
+const WITHDWAWL = "Withdrawal"
 
 var (
 	WebhookURL  string
@@ -106,6 +109,19 @@ func main() {
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("info"), infoCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("wallet"), walletCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("confirm_withdrawal"), confirmWithdrawal))
+
+	dispatcher.AddHandler(handlers.NewConversation(
+		[]ext.Handler{handlers.NewCallback(callbackquery.Prefix("withdraw"), withdrawal)},
+		map[string][]ext.Handler{
+			WITHDWAWL: {handlers.NewMessage(onlyFloat64, withdrawalAsk)},
+		},
+		&handlers.ConversationOpts{
+			Exits:        []ext.Handler{handlers.NewCommand("cancel", cancel)},
+			StateStorage: conversation.NewInMemoryStorage(conversation.KeyStrategySenderAndChat),
+			AllowReEntry: true,
+		},
+	))
 
 	updater := ext.NewUpdater(dispatcher, nil)
 
@@ -144,6 +160,15 @@ func main() {
 
 	log.Printf("%s has been started...\n", bot.User.Username)
 	updater.Idle()
+}
+
+func onlyFloat64(msg *gotgbot.Message) bool {
+	if msg.Text != "" {
+		_, err := strconv.ParseFloat(msg.Text, 64)
+		return err == nil
+	} else {
+		return false
+	}
 }
 
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -651,5 +676,141 @@ func broadcast(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
+	return nil
+}
+
+func cancel(b *gotgbot.Bot, ctx *ext.Context) error {
+	_, err := ctx.EffectiveMessage.Reply(b, "❌ <b>Conversation cancelled</b>", &gotgbot.SendMessageOpts{
+		ParseMode: "html",
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to send cancel message: %w", err)
+	}
+
+	return handlers.EndConversation()
+}
+
+func withdrawal(b *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	query := ctx.Update.CallbackQuery
+	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+		Text:      "Plz send amout to withdrawl",
+		ShowAlert: true,
+	})
+
+	_, _, err := msg.EditText(b, "Plz send amout to withdrawl", &gotgbot.EditMessageTextOpts{
+		ParseMode: "html",
+	})
+
+	if err != nil {
+		log.Printf("error while editing message: %v", err)
+		return handlers.EndConversation()
+	}
+
+	return handlers.NextConversationState(WITHDWAWL)
+}
+
+func withdrawalAsk(b *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	user := ctx.EffectiveUser
+	text := msg.GetText()
+
+	amount, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		_, _ = msg.Reply(b, "❌ Invalid amount.\nTry again with a valid amount", nil)
+		return handlers.NextConversationState(WITHDWAWL)
+	}
+
+	userInfo, err := getUser(user.Id)
+	if err != nil {
+		_, _ = msg.Reply(b, "❌ "+err.Error(), nil)
+		return handlers.EndConversation()
+	}
+
+	if amount > userInfo.Balance {
+		_, _ = msg.Reply(b, "❌ Insufficient balance.\nTry again with a valid amount", nil)
+		return handlers.NextConversationState(WITHDWAWL)
+	}
+
+	_, err = removeBalance(msg.From.Id, amount)
+	if err != nil {
+		_, _ = msg.Reply(b, "❌ "+err.Error(), nil)
+		return handlers.EndConversation()
+	}
+
+	button := gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text:         "Confirm",
+					CallbackData: fmt.Sprintf("confirm_withdrawal.%d.%f", user.Id, amount),
+				},
+			},
+		},
+	}
+
+	loggerMsg := fmt.Sprintf("💰 <b>%s</b> requested a withdrawal of <b>%.2f\n\nUser AccNo: <code>%d</code>", user.FirstName, amount, userInfo.AccNo)
+
+	_, err = b.SendMessage(LoggerID, loggerMsg, &gotgbot.SendMessageOpts{ReplyMarkup: button, ParseMode: "html"})
+	if err != nil {
+		_, _ = msg.Reply(b, "❌ Failed to send withdrawal msg in looger id."+err.Error(), nil)
+		return handlers.EndConversation()
+	}
+
+	_, _ = msg.Reply(b, "🎉 Withdrawal Request Submitted Successfully! 🎉\n\n- 🛠 Processing Time: Please allow a few hours for our team to review and approve your request.  ", nil)
+	return handlers.EndConversation()
+}
+
+func confirmWithdrawal(b *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	query := ctx.Update.CallbackQuery
+	data := query.Data
+
+	splitData := strings.Split(data, ".")
+	if len(splitData) < 3 {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "❌ Invalid callback data.",
+			ShowAlert: true,
+		})
+		return nil
+	}
+
+	userID, err := strconv.ParseInt(splitData[1], 10, 64)
+	if err != nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "❌ Invalid user ID.",
+			ShowAlert: true,
+		})
+		return nil
+	}
+
+	amount, err := strconv.ParseFloat(splitData[2], 64)
+	if err != nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "❌ Invalid amount.",
+			ShowAlert: true,
+		})
+		return nil
+	}
+
+	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+		Text:      "✅ Processing...",
+		ShowAlert: true,
+	})
+
+	_, _, _ = msg.EditText(b, fmt.Sprintf("✅  Done : Amout %f", amount), nil)
+	text := fmt.Sprintf(`🎉 Withdrawal Approved! 🎉  
+
+✅ Your withdrawal request has been successfully approved!  
+
+Amout: %f
+
+Thank you for trusting us! 🚀`, amount)
+
+	_, err = b.SendMessage(userID, text, nil)
+	if err != nil {
+		_, _ = msg.Reply(b, "Failed to msg approved msg"+err.Error(), nil)
+	}
 	return nil
 }
